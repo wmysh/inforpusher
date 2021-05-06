@@ -6,7 +6,7 @@ from configparser import ConfigParser
 from pydantic import BaseModel
 
 configs = ConfigParser()
-configs.read('config.ini')
+configs.read('config/config.ini')
 
 allow_list = ['text', 'markdown']
 
@@ -66,4 +66,9 @@ async def corwechat(push_type: str, item: Item):
 
 if __name__ == '__main__':
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8181)
+    if configs.has_section("common"):
+        server_addr = configs['common']['server_addr']
+        server_port = int(configs['common']['server_port'])
+        uvicorn.run(app, host = server_addr, port = server_port)
+    else:
+        print("Please check config file")
