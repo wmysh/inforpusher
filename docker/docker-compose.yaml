@@ -1,0 +1,18 @@
+version: '3'
+services:
+  inforpusher:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: inforpusher
+    restart: always
+    image: inforpusher
+    tty: true
+    network_mode: bridge
+    volumes:
+      - ./config:/inforpusher/config
+      - ./logs:/inforpusher/logs
+    ports:
+      - "127.0.0.1:8234:80"
+    environment:
+      - FORWARDED_ALLOW_IPS=172.17.0.1
