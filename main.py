@@ -29,7 +29,9 @@ async def corwechat(message: str, push_type: str, method: str, title: str = None
         method = 'text'
     if title and url and method == 'text':
         method = 'textcard'
-    
+    if title and not url:
+        message = '[' + title + ']\n' + message
+
     if configs.has_section(push_type):
         try:
             corID = configs[push_type]['corID']
@@ -66,7 +68,9 @@ async def corwechat(push_type: str, item: Item):
         item.message = item.message.replace('@', '#')
     if item.title and item.url and item.method == 'text':
         item.method = 'textcard'
-    
+    if item.title and not item.url:
+        item.message = '[' + item.title + ']\n' + item.message
+
     if configs.has_section(push_type):
         try:
             corID = configs[push_type]['corID']
