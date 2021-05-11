@@ -1,6 +1,4 @@
-from fastapi import Depends, FastAPI, HTTPException, Query
-import time
-import sys
+from fastapi import FastAPI, HTTPException
 from loguru import logger
 from function import wechat
 from configparser import ConfigParser
@@ -14,21 +12,22 @@ allow_list = ['text', 'markdown']
 class Item(BaseModel):
     message: str
     toUser: str = "@all"
-    method: str = "text"
+    type: str = "text"
     title: str = None
     url: str = None
 
 app = FastAPI()
 
-@app.get("/wechat/{push_type}/{method}")
-async def corwechat(message: str, push_type: str, method: str, title: str = None, url: str = None):
-    if method == 'markdown':
+@app.get("/wechat/{push_type}")
+async def corwechat(message: str, push_type: str, type: str = 'text', title: str = None, url: str = None):
+    if type not in allow_list:
+        logger.error("Message type not allowed.")
+        raise HTTPException(status_code = 404, detail="Message type not allowed.")
+    if type == 'markdown':
         message = message.replace(r'\n', '\n')
         message = message.replace('@', '#')
-    else:
-        method = 'text'
-    if title and url and method == 'text':
-        method = 'textcard'
+    if title and url and type == 'text':
+        type = 'textcard'
     if title and not url:
         message = '[' + title + ']\n' + message
 
@@ -48,7 +47,7 @@ async def corwechat(message: str, push_type: str, method: str, title: str = None
             access_token = 0
             over_time = 0
         try:
-            access_token, over_time, response = wechat.wechat_msg_send(corID, corpsecret, agentid, toUser, access_token, over_time, method, message, title, url)
+            access_token, over_time, response = wechat.wechat_msg_send(corID, corpsecret, agentid, toUser, access_token, over_time, type, message, title, url)
             configs[push_type]['access_token'] = access_token
             configs[push_type]['over_time'] = over_time
         except:
@@ -57,17 +56,18 @@ async def corwechat(message: str, push_type: str, method: str, title: str = None
         else:
             return response
     else:
-        raise HTTPException(status_code = 404, detail="Invalid method")
+        raise HTTPException(status_code = 404, detail="Unaviable mothod, please add to config.")
 
-@app.post("/wechat/{push_type}/")
+@app.post("/wechat/{push_type}")
 async def corwechat(push_type: str, item: Item):
-    if item.method not in allow_list:
-        raise HTTPException(status_code = 404, detail="Invalid method")
-    if item.method == 'markdown':
+    if item.type not in allow_list:
+        logger.error("Message type not allowed.")
+        raise HTTPException(status_code = 404, detail="Message type not allowed.")
+    if item.type == 'markdown':
         item.message = item.message.replace(r'\n', '\n')
         item.message = item.message.replace('@', '#')
-    if item.title and item.url and item.method == 'text':
-        item.method = 'textcard'
+    if item.title and item.url and item.type == 'text':
+        item.type = 'textcard'
     if item.title and not item.url:
         item.message = '[' + item.title + ']\n' + item.message
 
@@ -90,7 +90,7 @@ async def corwechat(push_type: str, item: Item):
             access_token = 0
             over_time = 0
         try:
-            access_token, over_time, response = wechat.wechat_msg_send(corID, corpsecret, agentid, toUser, access_token, over_time, item.method, item.message, item.title, item.url)
+            access_token, over_time, response = wechat.wechat_msg_send(corID, corpsecret, agentid, toUser, access_token, over_time, item.type, item.message, item.title, item.url)
             configs[push_type]['access_token'] = access_token
             configs[push_type]['over_time'] = over_time
         except:
@@ -99,7 +99,7 @@ async def corwechat(push_type: str, item: Item):
         else:
             return response
     else:
-        raise HTTPException(status_code = 404, detail="Invalid method")
+        raise HTTPException(status_code = 404, detail="Unaviable mothod, please add to config.")
 
 if __name__ == '__main__':
     import uvicorn
