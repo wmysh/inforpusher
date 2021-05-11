@@ -20,19 +20,35 @@ def get_access_token(corID, corpsecret):
             logger.info("Got new access_token.")
             return access_token, over_time
 
-def wechat_msg_send(corID, corpsecret, agentid, toUser, access_token, over_time, method, message):
-    data = {
-        "touser": toUser,
-        "msgtype": method,
-        "agentid": agentid,
-        method: {
-            "content": message
-        },
-        "safe": 0,
-        "enable_id_trans": 0,
-        "enable_duplicate_check": 0,
-        "duplicate_check_interval": 1800
-    }
+def wechat_msg_send(corID, corpsecret, agentid, toUser, access_token, over_time, method, message, title, url):
+    if method == "text" or  method == "markdown":
+        data = {
+            "touser": toUser,
+            "msgtype": method,
+            "agentid": agentid,
+            method: {
+                "content": message
+            },
+            "safe": 0,
+            "enable_id_trans": 0,
+            "enable_duplicate_check": 0,
+            "duplicate_check_interval": 1800
+        }
+    elif method == "textcard":
+        data = {
+            "touser": toUser,
+            "msgtype": method,
+            "agentid": agentid,
+            method: {
+                "title": title,
+                "description": message,
+                "url": url,
+            },
+            "safe": 0,
+            "enable_id_trans": 0,
+            "enable_duplicate_check": 0,
+            "duplicate_check_interval": 1800
+        }
 
     # if get_access_token overtime
     if time.time() > float(over_time):

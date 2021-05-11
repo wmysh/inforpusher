@@ -13,19 +13,23 @@ allow_list = ['text', 'markdown']
 
 class Item(BaseModel):
     message: str
-    toUser: str = None
+    toUser: str = "@all"
     method: str = "text"
+    title: str = None
+    url: str = None
 
 app = FastAPI()
 
 @app.get("/wechat/{push_type}/{method}")
-async def corwechat(message: str, push_type:str, method: str):
+async def corwechat(message: str, push_type: str, method: str, title: str = None, url: str = None):
     if method == 'markdown':
         message = message.replace(r'\n', '\n')
         message = message.replace('@', '#')
     else:
         method = 'text'
-
+    if title and url and method == 'text':
+        method = 'textcard'
+    
     if configs.has_section(push_type):
         try:
             corID = configs[push_type]['corID']
@@ -42,7 +46,7 @@ async def corwechat(message: str, push_type:str, method: str):
             access_token = 0
             over_time = 0
         try:
-            access_token, over_time, response = wechat.wechat_msg_send(corID, corpsecret, agentid, toUser, access_token, over_time, method, message)
+            access_token, over_time, response = wechat.wechat_msg_send(corID, corpsecret, agentid, toUser, access_token, over_time, method, message, title, url)
             configs[push_type]['access_token'] = access_token
             configs[push_type]['over_time'] = over_time
         except:
@@ -57,6 +61,12 @@ async def corwechat(message: str, push_type:str, method: str):
 async def corwechat(push_type: str, item: Item):
     if item.method not in allow_list:
         raise HTTPException(status_code = 404, detail="Invalid method")
+    if item.method == 'markdown':
+        item.message = item.message.replace(r'\n', '\n')
+        item.message = item.message.replace('@', '#')
+    if item.title and item.url and item.method == 'text':
+        item.method = 'textcard'
+    
     if configs.has_section(push_type):
         try:
             corID = configs[push_type]['corID']
@@ -76,7 +86,7 @@ async def corwechat(push_type: str, item: Item):
             access_token = 0
             over_time = 0
         try:
-            access_token, over_time, response = wechat.wechat_msg_send(corID, corpsecret, agentid, toUser, access_token, over_time, item.method, item.message)
+            access_token, over_time, response = wechat.wechat_msg_send(corID, corpsecret, agentid, toUser, access_token, over_time, item.method, item.message, item.title, item.url)
             configs[push_type]['access_token'] = access_token
             configs[push_type]['over_time'] = over_time
         except:
