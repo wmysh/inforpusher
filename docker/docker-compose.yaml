@@ -13,6 +13,6 @@ services:
       - ./config:/inforpusher/config
       - ./logs:/inforpusher/logs
     ports:
-      - "127.0.0.1:8234:80"
+      - "127.0.0.1:8234:8234"
     environment:
       - FORWARDED_ALLOW_IPS=172.17.0.1
