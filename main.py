@@ -7,20 +7,19 @@ from pydantic import BaseModel
 configs = ConfigParser()
 configs.read('config/config.ini')
 
-allow_list = ['text', 'markdown']
+wechat_type_allow_list = ['text', 'markdown']
 
 class Item(BaseModel):
-    message: str
-    toUser: str = "@all"
+    msg: str
+    toAgent: str = None
     type: str = "text"
     title: str = None
     url: str = None
 
 app = FastAPI()
 
-@app.get("/wechat/{push_type}")
-async def corwechat(message: str, push_type: str, type: str = 'text', title: str = None, url: str = None):
-    if type not in allow_list:
+def wechat_handle(type, message, toAgent, title, url):
+    if type not in wechat_type_allow_list:
         logger.error("Message type not allowed.")
         raise HTTPException(status_code = 404, detail="Message type not allowed.")
     if type == 'markdown':
@@ -30,76 +29,44 @@ async def corwechat(message: str, push_type: str, type: str = 'text', title: str
         type = 'textcard'
     if title and not url:
         message = '[' + title + ']\n' + message
-
-    if configs.has_section(push_type):
+    if toAgent:
+        agent = 'wechat' + '-' + toAgent
+    else:
+        agent = 'wechat'
+    if configs.has_section(agent):
         try:
-            corID = configs[push_type]['corID']
-            corpsecret = configs[push_type]['corpsecret']
-            agentid = configs[push_type]['agentid']
-            toUser = configs[push_type]['toUser']
+            corID = configs[agent]['corID']
+            corpsecret = configs[agent]['corpsecret']
+            agentid = configs[agent]['agentid']
+            toUser = configs[agent]['toUser']
         except:
             raise HTTPException(status_code = 404, detail="Please check server config")
         try:
-            access_token = configs[push_type]['access_token']
-            over_time = configs[push_type]['over_time']
+            access_token = configs[agent]['access_token']
+            over_time = configs[agent]['over_time']
         except:
-            logger.info("Access_token not found, will set to default.")
+            logger.info(f"Agent {agent}'s access_token not found, will set to default.")
             access_token = 0
             over_time = 0
         try:
             access_token, over_time, response = wechat.wechat_msg_send(corID, corpsecret, agentid, toUser, access_token, over_time, type, message, title, url)
-            configs[push_type]['access_token'] = access_token
-            configs[push_type]['over_time'] = over_time
+            configs[agent]['access_token'] = access_token
+            configs[agent]['over_time'] = over_time
         except:
             logger.error("Wechat Send fail, please check API.")
             raise HTTPException(status_code = 500, detail="Wechat Send fail, please check API.")
         else:
             return response
     else:
-        raise HTTPException(status_code = 404, detail="Unaviable mothod, please add to config.")
+        raise HTTPException(status_code = 404, detail="Unaviable agent, please add to config.")
 
-@app.post("/wechat/{push_type}")
-async def corwechat(push_type: str, item: Item):
-    if item.type not in allow_list:
-        logger.error("Message type not allowed.")
-        raise HTTPException(status_code = 404, detail="Message type not allowed.")
-    if item.type == 'markdown':
-        item.message = item.message.replace(r'\n', '\n')
-        item.message = item.message.replace('@', '#')
-    if item.title and item.url and item.type == 'text':
-        item.type = 'textcard'
-    if item.title and not item.url:
-        item.message = '[' + item.title + ']\n' + item.message
+@app.get("/wechat")
+async def infopush(msg: str, type: str = 'text', toAgent: str = None, title: str = None, url: str = None):
+    return wechat_handle(type, msg, toAgent, title, url)
 
-    if configs.has_section(push_type):
-        try:
-            corID = configs[push_type]['corID']
-            corpsecret = configs[push_type]['corpsecret']
-            agentid = configs[push_type]['agentid']
-            if(item.toUser):
-                toUser = item.toUser
-            else:
-                toUser = configs[push_type]['toUser']
-        except:
-            raise HTTPException(status_code = 404, detail="Please check server config")
-        try:
-            access_token = configs[push_type]['access_token']
-            over_time = configs[push_type]['over_time']
-        except:
-            logger.info("Access_token not found, will set to default.")
-            access_token = 0
-            over_time = 0
-        try:
-            access_token, over_time, response = wechat.wechat_msg_send(corID, corpsecret, agentid, toUser, access_token, over_time, item.type, item.message, item.title, item.url)
-            configs[push_type]['access_token'] = access_token
-            configs[push_type]['over_time'] = over_time
-        except:
-            logger.error("Wechat Send fail, please check API.")
-            raise HTTPException(status_code = 500, detail="Wechat Send fail, please check API.")
-        else:
-            return response
-    else:
-        raise HTTPException(status_code = 404, detail="Unaviable mothod, please add to config.")
+@app.post("/wecaht")
+async def infopush(item: Item):
+    return wechat_handle(item.type, item.msg, item.toAgent, item.title, item.url)
 
 if __name__ == '__main__':
     import uvicorn

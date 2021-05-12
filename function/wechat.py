@@ -52,7 +52,7 @@ def wechat_msg_send(corID, corpsecret, agentid, toUser, access_token, over_time,
 
     # if get_access_token overtime
     if time.time() > float(over_time):
-        logger.info("Access_token overtime, will get new one.")
+        logger.info(f"{agentid}: Access_token overtime, will get new one.")
         access_token, over_time = get_access_token(corID, corpsecret)
 
     try:
