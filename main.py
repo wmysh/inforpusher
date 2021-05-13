@@ -61,11 +61,11 @@ def wechat_handle(type, message, toAgent, title, url):
         raise HTTPException(status_code = 404, detail="Unaviable agent, please add to config.")
 
 @app.get("/wechat")
-async def infopush(msg: str, type: str = 'text', toAgent: str = None, title: str = None, url: str = None):
+async def wechat_get(msg: str, type: str = 'text', toAgent: str = None, title: str = None, url: str = None):
     return wechat_handle(type, msg, toAgent, title, url)
 
-@app.post("/wecaht")
-async def infopush(item: Item):
+@app.post("/wechat")
+async def wechat_post(item: Item):
     return wechat_handle(item.type, item.msg, item.toAgent, item.title, item.url)
 
 if __name__ == '__main__':
