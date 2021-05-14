@@ -1,24 +1,19 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Form, Query
 from loguru import logger
 from function import wechat
 from configparser import ConfigParser
-from pydantic import BaseModel
+import uvicorn
 
 configs = ConfigParser()
 configs.read('config/config.ini')
 
 wechat_type_allow_list = ['text', 'markdown']
 
-class Item(BaseModel):
-    msg: str
-    toAgent: str = None
-    type: str = "text"
-    title: str = None
-    url: str = None
-
 app = FastAPI()
 
 def wechat_handle(type, message, toAgent, title, url):
+    if not type:
+        type = "text"
     if type not in wechat_type_allow_list:
         logger.error("Message type not allowed.")
         raise HTTPException(status_code = 404, detail="Message type not allowed.")
@@ -61,15 +56,24 @@ def wechat_handle(type, message, toAgent, title, url):
         raise HTTPException(status_code = 404, detail="Unaviable agent, please add to config.")
 
 @app.get("/wechat")
-async def wechat_get(msg: str, type: str = 'text', toAgent: str = None, title: str = None, url: str = None):
+async def wechat_get(msg: str = Query(..., description = 'The meessage you want to send.'), 
+                        type: str = Query(None, title = "122", description = "OPTIONAL AND DEFAULT TO TEXT, you can set the message tpye to text or markdown."),
+                        toAgent: str = Query(None, description = "OPTIONAL AND DEFAULT SEND TO ALL, you can control who can receive this message."),
+                        title: str = Query(None, description = "OPTIONAL AND DEFAULT TO None, the title of message. And if have both title and url, you will send a textcard."),
+                        url: str = Query(None, description = "OPTIONAL AND DEFAULT TO None, the url of textcard. And if have both title and url, you will send a textcard.")
+                        ):
     return wechat_handle(type, msg, toAgent, title, url)
 
 @app.post("/wechat")
-async def wechat_post(item: Item):
-    return wechat_handle(item.type, item.msg, item.toAgent, item.title, item.url)
+async def wechat_post(msg: str = Form(..., description = "REQUIRED, it's the meessage you want to send."),
+                        type: str = Form(None, title="123",description = "OPTIONAL AND DEFAULT TO TEXT, you can set the message tpye to text or markdown."),
+                        toAgent: str = Form(None, description = "OPTIONAL AND DEFAULT SEND TO ALL, you can control who can receive this message."),
+                        title: str = Form(None, description = "OPTIONAL AND DEFAULT TO None, the title of message. And if have both title and url, you will send a textcard."),
+                        url: str = Form(None, description = "OPTIONAL AND DEFAULT TO None, the url of textcard. And if have both title and url, you will send a textcard.")
+                        ):
+    return wechat_handle(type, msg, toAgent, title, url)
 
 if __name__ == '__main__':
-    import uvicorn
     try:
         server_addr = configs['common']['server_addr']
     except:
