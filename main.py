@@ -1,11 +1,16 @@
-from fastapi import FastAPI, HTTPException, Query, Form
+from fastapi import FastAPI, HTTPException, Query, Form, Request
 from loguru import logger
 from function import wechat
 from configparser import ConfigParser
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 import uvicorn
+import markdown
 
 configs = ConfigParser()
 configs.read('config/config.ini')
+
+templates = Jinja2Templates(directory="templates")
 
 wechat_type_allow_list = ['text', 'markdown']
 
@@ -19,12 +24,21 @@ def wechat_handle(type, message, toAgent, title, url):
     if type not in wechat_type_allow_list:
         logger.error("Message type not allowed.")
         raise HTTPException(status_code = 404, detail="Message type not allowed.")
-    if title and url and type == 'text':
-        type = 'textcard'
     if type == 'markdown':
-        message = message.replace('@', '#')
-    if title and not url:
-        message = '[' + title + ']\n' + message
+            if not title:
+                raise HTTPException(status_code = 404, detail="The title of markdown content not found.")
+            message = message.replace('#', '%23')
+            message = message.replace('&', '%26')
+            message = message.replace('\r', r'\r')
+            message = message.replace('\n', r'\n')
+            url = configs['common']['base_url'] + '/md2html' + '?title='+ title + '&content=' + message
+            type = 'textcard'
+            message = "点击查看内容"
+    elif type == 'text' and title:
+        if url:
+            type = 'textcard'
+        else:
+            message = '[' + title + ']\n' + message
     if toAgent:
         agent = 'wechat' + '-' + toAgent
     else:
@@ -73,6 +87,17 @@ async def wechat_post(msg: str = Form(..., description = 'REQUIRED, The meessage
                         url: str = Form(None, description = "OPTIONAL AND DEFAULT TO None, the url of textcard. And if have both title and url, you will send a textcard.")
                         ):
     return wechat_handle(type, msg, toAgent, title, url)
+
+@app.get("/md2html", response_class=HTMLResponse)
+async def md2html(request: Request, 
+                        content: str = Query(..., description = 'REQUIRED, The markdown content you want to show with html.'),
+                        title: str = Query("Markdown to html", description = 'OPTIONAL, The title of the webpage.')
+                        ):
+    content = content.replace(r'\r', '\r')
+    content = content.replace(r'\n', '\n')
+    content = content.replace(r'%26', '&')
+    html = markdown.markdown(content)
+    return templates.TemplateResponse("item.html", {"request": request, "content": html, "title": title})
 
 if __name__ == '__main__':
     try:
