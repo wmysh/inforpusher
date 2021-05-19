@@ -4,7 +4,7 @@ MAINTAINER wuyehow <wyhadter@outlook.com>
 WORKDIR /inforpusher
 
 RUN set -ex \
-    && apk add --no-cache tzdata moreutils git gcc g++ py-pip \
+    && apk add --no-cache tzdata moreutils git gcc g++ py-pip libffi-dev \
     && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && echo "Asia/Shanghai" > /etc/timezone
 
