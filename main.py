@@ -5,7 +5,7 @@ from configparser import ConfigParser
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 import uvicorn
-import markdown
+import misaka
 
 configs = ConfigParser()
 configs.read('config/config.ini')
@@ -96,7 +96,7 @@ async def md2html(request: Request,
     content = content.replace(r'\r', '\r')
     content = content.replace(r'\n', '\n')
     content = content.replace(r'%26', '&')
-    html = markdown.markdown(content)
+    html = misaka.html(content)
     return templates.TemplateResponse("item.html", {"request": request, "content": html, "title": title})
 
 if __name__ == '__main__':
