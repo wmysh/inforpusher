@@ -16,6 +16,13 @@ templates = Jinja2Templates(directory="templates")
 
 wechat_type_allow_list = ['text', 'markdown']
 
+class WechatPostItem(BaseModel):
+    msg: str = Query(..., description = 'REQUIRED, The meessage you want to send.')
+    type: str = Query(None, description = "OPTIONAL AND DEFAULT TO TEXT, you can set the message tpye to text or markdown.")
+    toAgent: str = Query(None, description = "OPTIONAL AND DEFAULT SEND TO ALL, you can control who can receive this message.")
+    title: str = Query(None, description = "OPTIONAL AND DEFAULT TO None, the title of message. And if have both title and url, you will send a textcard.")
+    url: str = Query(None, description = "OPTIONAL AND DEFAULT TO None, the url of textcard. And if have both title and url, you will send a textcard.")
+
 app = FastAPI()
 
 def wechat_handle(type, message, toAgent, title, url):
@@ -78,13 +85,8 @@ async def wechat_get(msg: str = Query(..., description = 'REQUIRED, The meessage
     return wechat_handle(type, msg, toAgent, title, url)
 
 @app.post("/wechat")
-async def wechat_post(msg: str = Form(..., description = 'REQUIRED, The meessage you want to send.'), 
-                        type: str = Form(None, description = "OPTIONAL AND DEFAULT TO TEXT, you can set the message tpye to text or markdown."),
-                        toAgent: str = Form(None, description = "OPTIONAL AND DEFAULT SEND TO ALL, you can control who can receive this message."),
-                        title: str = Form(None, description = "OPTIONAL AND DEFAULT TO None, the title of message. And if have both title and url, you will send a textcard."),
-                        url: str = Form(None, description = "OPTIONAL AND DEFAULT TO None, the url of textcard. And if have both title and url, you will send a textcard.")
-                        ):
-    return wechat_handle(type, msg, toAgent, title, url)
+async def wechat_post(wechatpostitem: WechatPostItem):
+    return wechat_handle(wechatpostitem.type, wechatpostitem.msg, wechatpostitem.toAgent, wechatpostitem.title, wechatpostitem.url)
 
 @app.get("/md2html", response_class=HTMLResponse)
 async def md2html(request: Request, 
