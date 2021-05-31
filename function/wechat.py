@@ -69,4 +69,4 @@ def wechat_msg_send(corID, corpsecret, agentid, toUser, access_token, over_time,
                 response = requests.post('https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token=' + access_token, json = data).text
             else:
                 raise Exception("Can't get correct access_token, please check API.")
-        return access_token, over_time, response
+        return access_token, over_time, json.loads(response)

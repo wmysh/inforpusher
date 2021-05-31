@@ -4,6 +4,8 @@ from function import wechat
 from configparser import ConfigParser
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+from urllib.parse import quote, unquote
+from pydantic import BaseModel
 import uvicorn
 import misaka
 
@@ -13,6 +15,13 @@ configs.read('config/config.ini')
 templates = Jinja2Templates(directory="templates")
 
 wechat_type_allow_list = ['text', 'markdown']
+
+class WechatPostItem(BaseModel):
+    msg: str = Query(..., description = 'REQUIRED, The meessage you want to send.')
+    type: str = Query(None, description = "OPTIONAL AND DEFAULT TO TEXT, you can set the message tpye to text or markdown.")
+    toAgent: str = Query(None, description = "OPTIONAL AND DEFAULT SEND TO ALL, you can control who can receive this message.")
+    title: str = Query(None, description = "OPTIONAL AND DEFAULT TO None, the title of message. And if have both title and url, you will send a textcard.")
+    url: str = Query(None, description = "OPTIONAL AND DEFAULT TO None, the url of textcard. And if have both title and url, you will send a textcard.")
 
 app = FastAPI()
 
@@ -27,11 +36,7 @@ def wechat_handle(type, message, toAgent, title, url):
     if type == 'markdown':
             if not title:
                 raise HTTPException(status_code = 404, detail="The title of markdown content not found.")
-            message = message.replace('#', '%23')
-            message = message.replace('&', '%26')
-            message = message.replace('\r', r'\r')
-            message = message.replace('\n', r'\n')
-            url = configs['common']['base_url'] + '/md2html' + '?title='+ title + '&content=' + message
+            url = configs['common']['base_url'] + '/md2html' + '?title='+ title + '&content=' + quote(message)
             type = 'textcard'
             message = "点击查看内容"
     elif type == 'text' and title:
@@ -80,23 +85,15 @@ async def wechat_get(msg: str = Query(..., description = 'REQUIRED, The meessage
     return wechat_handle(type, msg, toAgent, title, url)
 
 @app.post("/wechat")
-async def wechat_post(msg: str = Form(..., description = 'REQUIRED, The meessage you want to send.'), 
-                        type: str = Form(None, description = "OPTIONAL AND DEFAULT TO TEXT, you can set the message tpye to text or markdown."),
-                        toAgent: str = Form(None, description = "OPTIONAL AND DEFAULT SEND TO ALL, you can control who can receive this message."),
-                        title: str = Form(None, description = "OPTIONAL AND DEFAULT TO None, the title of message. And if have both title and url, you will send a textcard."),
-                        url: str = Form(None, description = "OPTIONAL AND DEFAULT TO None, the url of textcard. And if have both title and url, you will send a textcard.")
-                        ):
-    return wechat_handle(type, msg, toAgent, title, url)
+async def wechat_post(wechatpostitem: WechatPostItem):
+    return wechat_handle(wechatpostitem.type, wechatpostitem.msg, wechatpostitem.toAgent, wechatpostitem.title, wechatpostitem.url)
 
 @app.get("/md2html", response_class=HTMLResponse)
 async def md2html(request: Request, 
                         content: str = Query(..., description = 'REQUIRED, The markdown content you want to show with html.'),
                         title: str = Query("Markdown to html", description = 'OPTIONAL, The title of the webpage.')
                         ):
-    content = content.replace(r'\r', '\r')
-    content = content.replace(r'\n', '\n')
-    content = content.replace(r'%26', '&')
-    html = misaka.html(content)
+    html = misaka.html(unquote(content))
     return templates.TemplateResponse("item.html", {"request": request, "content": html, "title": title})
 
 if __name__ == '__main__':
